@@ -225,15 +225,33 @@
     TZImagePickerController *imagePickerVc = (TZImagePickerController *)self.navigationController;
     if (imagePickerVc.allowEditVideo) {
         [imagePickerVc showProgressHUD];
-        [[TZImageManager manager] getVideoOutputPathWithAsset:_model.asset presetName:imagePickerVc.presetName success:^(NSString *outputPath) {
-            [imagePickerVc hideProgressHUD];
-            self->_outputPath = outputPath;
-            [self dismissAndCallDelegateMethod];
-        } failure:^(NSString *errorMessage, NSError *error) {
-            [imagePickerVc hideProgressHUD];
-            self->_errorMsg = errorMessage;
-            [self dismissAndCallDelegateMethod];
-        }];
+        /* 2024-08-23 Fork 修改
+         如果是支持编辑，判断原视频时长是否超过maxCropVideoDuration最大裁剪时长，如果是，则从0开始裁剪至maxCropVideoDuration值
+         */
+        if (_model.asset.duration >= 1 && imagePickerVc.maxCropVideoDuration >= 1 &&
+            _model.asset.duration > imagePickerVc.maxCropVideoDuration) {
+            CMTime start = CMTimeMakeWithSeconds(0, _playerLayer.player.currentTime.timescale);
+            CMTime duration = CMTimeMakeWithSeconds(imagePickerVc.maxCropVideoDuration, _playerLayer.player.currentTime.timescale);
+            [[TZImageManager manager] getVideoOutputPathWithAsset:_model.asset presetName:imagePickerVc.presetName timeRange:CMTimeRangeMake(start, duration) success:^(NSString *outputPath) {
+                [imagePickerVc hideProgressHUD];
+                self->_outputPath = outputPath;
+                [self dismissAndCallDelegateMethod];
+            } failure:^(NSString *errorMessage, NSError *error) {
+                [imagePickerVc hideProgressHUD];
+                self->_errorMsg = errorMessage;
+                [self dismissAndCallDelegateMethod];
+            }];
+        } else {
+            [[TZImageManager manager] getVideoOutputPathWithAsset:_model.asset presetName:imagePickerVc.presetName success:^(NSString *outputPath) {
+                [imagePickerVc hideProgressHUD];
+                self->_outputPath = outputPath;
+                [self dismissAndCallDelegateMethod];
+            } failure:^(NSString *errorMessage, NSError *error) {
+                [imagePickerVc hideProgressHUD];
+                self->_errorMsg = errorMessage;
+                [self dismissAndCallDelegateMethod];
+            }];
+        }
     } else {
         [self dismissAndCallDelegateMethod];
     }
